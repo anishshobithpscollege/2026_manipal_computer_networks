@@ -1,0 +1,94 @@
+name: Bootstrap from template
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    # Safety guard: never run in the template repository itself.
+    if: ${{ github.repository != 'anishshobithpscollege/manipal_assignment_template' }}
+    runs-on: ubuntu-latest
+    steps:
+      # The default GITHUB_TOKEN (a GitHub App token) is refused when a push
+      # creates or updates files under .github/workflows/ -- which this job
+      # does. That needs a token with `workflow` scope, and the `permissions:`
+      # block above cannot grant it. Supply a PAT (Contents + Workflows: write)
+      # as the BOOTSTRAP_TOKEN secret; an org-level secret covers every
+      # generated repo at once.
+      - name: Require a workflow-scoped token
+        env:
+          BOOTSTRAP_TOKEN: ${{ secrets.BOOTSTRAP_TOKEN }}
+        run: |
+          if [ -z "${BOOTSTRAP_TOKEN}" ]; then
+            echo "::error::BOOTSTRAP_TOKEN is not set. The default GITHUB_TOKEN" \
+              "cannot push changes under .github/workflows/. Create a PAT with" \
+              "Contents + Workflows write and add it as the BOOTSTRAP_TOKEN" \
+              "secret (org-level recommended), then re-run this workflow."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          # checkout persists these credentials, so the `git push` below runs
+          # as this token and is allowed to write workflow files.
+          token: ${{ secrets.BOOTSTRAP_TOKEN }}
+
+      - name: Apply subject overlay and drop template-only files
+        env:
+          GH_TOKEN: ${{ secrets.BOOTSTRAP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Only act on a repo generated from a template.
+          if [ ! -f .github/template/README.md ]; then
+            echo "Already bootstrapped; nothing to do."
+            exit 0
+          fi
+
+          # Fetch the source template name from the API so the link stays
+          # correct even if the template is renamed later. Fall back to a
+          # constant if the API does not report it.
+          TEMPLATE=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.template_repository.full_name // empty' || true)
+          TEMPLATE=${TEMPLATE:-anishshobithpscollege/manipal_assignment_template}
+          REPO_NAME=${GITHUB_REPOSITORY#*/}
+          # Human title for the README heading: underscores and dashes become
+          # spaces, each word title-cased.
+          # "2026_manipal_cryptology" -> "2026 Manipal Cryptology".
+          REPO_TITLE=$(echo "$REPO_NAME" | tr '_-' '  ' \
+            | awk '{for(i=1;i<=NF;i++)$i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
+
+          # Subject README, with names filled in.
+          sed -e "s|{{TEMPLATE}}|$TEMPLATE|g" \
+              -e "s|{{REPO_TITLE}}|$REPO_TITLE|g" \
+              -e "s|{{REPO_NAME}}|$REPO_NAME|g" \
+            .github/template/README.md > README.md
+
+          # Swap in the slim build workflow (no collage/preview machinery).
+          mv .github/template/build.yml .github/workflows/build.yml
+
+          # Install the template-sync workflow, pointed back at this template,
+          # plus the ignore list that keeps subject content out of its PRs.
+          sed "s|{{TEMPLATE}}|$TEMPLATE|g" \
+            .github/template/template-sync.yml > .github/workflows/template-sync.yml
+          mv .github/template/.templatesyncignore .templatesyncignore
+
+          # Remove everything that should not ship in a subject repo:
+          # template tooling, this bootstrap workflow, and the example
+          # assignments (kept in the template repo as a reference).
+          rm -rf scripts .github/template .github/workflows/bootstrap.yml \
+                 assignments/theory/01-example assignments/lab/01-hello-world
+
+          # Keep the empty theory/ and lab/ folders as a scaffold.
+          mkdir -p assignments/theory assignments/lab
+          touch assignments/theory/.gitkeep assignments/lab/.gitkeep
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bootstrap subject repo from ${TEMPLATE}"
+          git push

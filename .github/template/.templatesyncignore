@@ -1,0 +1,21 @@
+# Paths template-sync must never touch in a subject repo.
+# Everything not listed here (template/**, Dockerfile, Makefile, .gitignore,
+# LICENSE) is kept in sync with the source template.
+
+# Subject-owned content.
+README.md
+config.json
+assignments/
+dist/
+
+# Template-only tooling that never ships to a subject repo.
+scripts/
+.github/template/
+.github/workflows/bootstrap.yml
+
+# Workflows here are the slim, generated variants — keep them as-is.
+.github/workflows/build.yml
+.github/workflows/template-sync.yml
+
+# The ignore list itself.
+.templatesyncignore

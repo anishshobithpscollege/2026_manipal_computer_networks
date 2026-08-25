@@ -1,0 +1,126 @@
+name: Build assignments
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "assignments/**"
+      - "template/**"
+      - "config.json"
+      - "Dockerfile"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Typst image
+        run: docker build -t typst-local .
+
+      - name: Compile assignments
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          # Identity for the output filenames comes from config.json.
+          reg_no=$(jq -r '.reg_no // ""' config.json)
+          author=$(jq -r '.author // ""' config.json)
+          # Slugify for a safe filename: non-alphanumerics -> "_", trimmed.
+          slugify() { echo "$1" | sed -E 's/[^[:alnum:]]+/_/g; s/^_+//; s/_+$//'; }
+          reg_slug=$(slugify "$reg_no")
+          author_slug=$(slugify "$author")
+
+          find assignments -type f -name main.typ | sort | while read -r f; do
+            dir=$(dirname "$f")
+            slug=$(basename "$dir")
+
+            # Assignment number: leading digits of the folder (02-foo -> 02),
+            # falling back to the number field inside main.typ.
+            no=$(echo "$slug" | grep -oE '^[0-9]+' || true)
+            if [ -z "$no" ]; then
+              no=$(sed -n 's/.*number:[[:space:]]*"[^0-9]*\([0-9]\+\).*/\1/p' "$f" | head -1 || true)
+            fi
+            no=${no:-00}
+
+            # Kind drives the per-subject config below: a main.typ `kind:` wins,
+            # else infer it from the folder.
+            kind=$(sed -n 's/.*kind:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1 || true)
+            if [ -z "$kind" ]; then
+              case "$dir" in assignments/lab/*) kind="Lab" ;; *) kind="Theory" ;; esac
+            fi
+
+            # Subject name and code, most specific first: a per-document override
+            # in main.typ, else the per-kind entry under `kinds` in config.json,
+            # else the top-level config value.
+            course=$(sed -n 's/.*course:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1 || true)
+            [ -z "$course" ] && course=$(jq -r --arg k "$kind" '.kinds[$k].course // .course // ""' config.json)
+            code=$(sed -n 's/.*course_code:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1 || true)
+            [ -z "$code" ] && code=$(jq -r --arg k "$kind" '.kinds[$k].course_code // .course_code // ""' config.json)
+            course_slug=$(slugify "$course")
+            code_slug=$(slugify "$code")
+
+            # <reg_no>_<name>_<course>_<course_code>_<assignment_no>.pdf.
+            # Empty fields are skipped so the name never has a double underscore.
+            base=""
+            for part in "$reg_slug" "$author_slug" "$course_slug" "$code_slug" "$no"; do
+              [ -n "$part" ] || continue
+              base="${base:+${base}_}${part}"
+            done
+            out="${base}.pdf"
+            # Guarantee uniqueness if two assignments share a number.
+            if [ -e "dist/$out" ]; then
+              echo "::warning::duplicate assignment number '$no'; disambiguating $f with its folder name"
+              out="${base}_${slug}.pdf"
+            fi
+
+            echo "::group::compile $out"
+            docker run --rm -v "$PWD:/work" -w /work typst-local \
+              compile --root /work "$f" "dist/$out"
+            echo "::endgroup::"
+          done
+
+      - name: Render preview images
+        run: |
+          mkdir -p dist/preview
+          if [ -f assignments/theory/01-example/main.typ ]; then
+            docker run --rm -v "$PWD:/work" -w /work typst-local \
+              compile --format png --ppi 150 --root /work \
+              assignments/theory/01-example/main.typ 'dist/preview/example-{p}.png'
+          fi
+
+      - name: Build preview collage
+        run: |
+          pip install --quiet pillow
+          python scripts/make_collage.py --pages 2 1 6 --output dist/collage.png
+
+      - name: Upload artifacts
+        if: ${{ hashFiles('dist/*.pdf') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdfs
+          path: dist/*.pdf
+
+      - name: Publish rolling release
+        if: ${{ hashFiles('dist/*.pdf') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest \
+            --title "Latest build" \
+            --notes "Built from ${GITHUB_SHA::7} on $(date -u +%Y-%m-%d)." \
+            dist/*.pdf dist/collage.png

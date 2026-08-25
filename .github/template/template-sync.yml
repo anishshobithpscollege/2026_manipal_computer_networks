@@ -1,0 +1,36 @@
+name: Template sync
+
+on:
+  # Check for template updates monthly, plus on demand.
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  template-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Opens a pull request when the source template's shared mechanics
+      # (the Typst template, Dockerfile, Makefile) change. Subject-specific
+      # files are held back by .templatesyncignore.
+      #
+      # Uses the default GITHUB_TOKEN. If your repo/org disables
+      # "Allow GitHub Actions to create and approve pull requests" (Settings ->
+      # Actions -> General), or you want workflow files synced too, set a PAT
+      # with `repo` (and `workflow`) scope as the TEMPLATE_SYNC_TOKEN secret.
+      - name: Sync from template
+        uses: AndreasAugustin/actions-template-sync@v2
+        with:
+          github_token: ${{ secrets.TEMPLATE_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          source_repo_path: {{TEMPLATE}}
+          upstream_branch: main
+          pr_labels: template-sync
+          pr_title: "chore: sync with {{TEMPLATE}}"
