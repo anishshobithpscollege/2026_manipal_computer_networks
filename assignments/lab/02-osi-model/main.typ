@@ -5,6 +5,7 @@
   number: "Assignment 02",
   kind: "Lab",
   keywords: ("OSI model", "Packet Tracer", "encapsulation", "ARP", "DNS", "TCP/IP"),
+  date: datetime(year: 2026, month: 8, day: 25)
 )
 
 // Each question from the assignment is shown verbatim in a shaded box, with the
