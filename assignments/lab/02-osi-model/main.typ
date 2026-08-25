@@ -7,368 +7,298 @@
   keywords: ("OSI model", "Packet Tracer", "encapsulation", "ARP", "DNS", "TCP/IP"),
 )
 
-= Aim
+// Each question from the assignment is shown verbatim in a shaded box, with the
+// answer written underneath. Pure procedure instructions are not reproduced.
+#let q(body) = block(
+  width: 100%,
+  above: 1.15em, below: 0.6em,
+  fill: theme.head-fill,
+  inset: (x: 11pt, y: 8pt),
+  radius: 4pt,
+)[#strong[Q.] #body]
 
-To trace a single web request from a client to a server inside a Cisco Packet
-Tracer topology and to map each stage of the request onto the seven layers of
-the OSI reference model. The exercise identifies the addresses, protocols,
-ports, and error-detection fields that operate at each layer, follows the
-encapsulation of one packet along its path, and observes how a physical-layer
-fault propagates up the stack.
+#heading(level: 1, numbering: none)[Aim]
 
-= Topology and Method
+To capture and analyse a single web (HTTP) request between a client and a server
+in Cisco Packet Tracer, and to identify how each stage of the request maps to the
+layers of the OSI reference model, including the addresses, protocols, ports, and
+error-checking fields used at each layer.
 
-The topology models a client LAN, a router, and a remote server that hosts
-`www.cyber.com`. Host `Tom` (Laptop0) issues the request, `Server0` resolves
-the name through DNS, `Router0` joins the two networks, and `Server1` serves the
-page. Every value in this report was read from the live devices over the Packet
-Tracer bridge, that is, the interface state, the MAC and IP addresses, and the
-NAT mode, and was confirmed with real pings. The canvas labels were not trusted,
-since a label such as the one on Laptop3 still reads `10.1.1.2` while the device
-itself holds no configured address.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, auto),
-    align: (left, left, left, left, left),
-    [Device], [Role], [Port], [IP / mask], [MAC],
-    [Laptop0 (Tom)], [Client host], [Fa0], [`10.1.1.2` /8], [`0060.3E57.B509`],
-    [Server0], [DNS server], [Fa0], [`10.1.1.10` /8], [`0001.6466.E9D9`],
-    [Router0], [Gateway], [Gi0/0], [`10.1.1.1` /8], [`000A.F36D.3101`],
-    [Router0], [Gateway], [Gi0/1], [`23.227.38.1` /8], [`000A.F36D.3102`],
-    [Server1], [Web server], [Fa0], [`23.227.38.65` /24], [`0060.7044.7973`],
-    [Switch0], [LAN switch], [2960-24TT], [none, L2 only], [--],
-    [Switch1], [Server switch], [2960-24TT], [none, L2 only], [--],
-  ),
-  caption: [Devices and addresses, read from the live topology. `/8` is the
-  mask `255.0.0.0` and `/24` is `255.255.255.0`. `Server1` answers to
-  `www.cyber.com`.],
-)
-
-The forwarding path from Tom to the web server is Laptop0, Switch0, Router0,
-Switch1, Server1, and the reply retraces it. Router0 runs no address
-translation: `nat_mode` reads `none` on both interfaces, so this is plain
-routing.
+#heading(level: 1, numbering: none)[Packet Capture and Inspection]
 
 #figure(
   image("assets/01-topology.png", width: 100%),
-  caption: [The live topology. The client LAN `10.1.1.0` sits on Switch0 with
-  Tom and the DNS server; Router0 joins it to the server subnet `23.227.38.0`
-  on Switch1, where the web server sits.],
+  caption: [The network topology. The client network `10.1.1.0` on Switch0 is
+  joined by Router0 to the server network `23.227.38.0` on Switch1.],
 )
 
-= Packet Capture and Inspection
+#q[Which layers of the OSI model are visible in the packet capture?]
 
-== Packets exchanged in one request
+Five layers are directly visible in the capture:
 
-A single page fetch is not a single packet. Opening `www.cyber.com` from Tom
-sets off a short sequence of exchanges, each serving a different layer. The
-logical steps are listed below.
+- *Layer 7 (Application):* the DNS query and response, and the HTTP request and response.
+- *Layer 4 (Transport):* UDP for DNS and TCP for HTTP, including port numbers and sequence/acknowledgement numbers.
+- *Layer 3 (Network):* the source and destination IP addresses and the routing decision.
+- *Layer 2 (Data Link):* Ethernet framing and ARP.
+- *Layer 1 (Physical):* transmission of the frame over the cable.
 
-#figure(
-  table(
-    columns: (auto, auto, auto, auto),
-    align: (left, left, left, left),
-    [Step], [Protocol], [Layer], [Purpose],
-    [1], [DNS query], [L7 over UDP], [ask Server0 for the address of `www.cyber.com`],
-    [2], [DNS response], [L7 over UDP], [Server0 returns `23.227.38.65`],
-    [3], [ARP], [L2], [resolve the next-hop MAC on first contact],
-    [4], [TCP SYN], [L4], [Tom opens a connection to port 80],
-    [5], [TCP SYN-ACK], [L4], [the server agrees and returns its parameters],
-    [6], [TCP ACK], [L4], [Tom completes the handshake],
-    [7], [HTTP GET], [L7], [Tom requests the page],
-    [8], [HTTP 200 OK], [L7], [the server returns the page in one or more segments],
-    [9], [TCP ACK], [L4], [Tom acknowledges the segments received],
-    [10], [TCP FIN, ACK], [L4], [the connection is closed in both directions],
-  ),
-  caption: [The logical exchange behind one web request.],
-)
+#heading(level: 1, numbering: none)[Source and Destination]
 
-Counting distinct end-to-end packets, a warm exchange runs to roughly fifteen to
-twenty; the exact figure depends on how many TCP segments the page occupies and
-on how many ARP lookups are still needed. Packet Tracer's simulation event list
-reports a larger number, because it records the same packet again at every
-switch and router it crosses. A packet from Tom to the server is logged five
-times on the way out, once at each of Laptop0, Switch0, Router0, Switch1, and
-Server1, so the event count is several times the number of packets on the wire.
+// Reset the section counter so the assignment questions are numbered 1 onward.
+#counter(heading).update(0)
 
-== OSI layers visible in the capture
+#q[What are the source and destination IP addresses in the packet capture? Which
+OSI layer handles these addresses?]
 
-Five layers appear directly in the per-packet detail.
+The source IP address is `10.1.1.2` (the client, Laptop0) and the destination IP
+address is `23.227.38.65` (the web server, Server1). IP addresses are handled at
+*Layer 3 (Network)*.
 
-- *Application (L7)*: the DNS query and reply, and the HTTP GET and 200 OK.
-- *Transport (L4)*: UDP for DNS, and TCP for HTTP, with ports, sequence and
-  acknowledgement numbers, and a maximum segment size negotiated in the handshake.
-- *Network (L3)*: the source and destination IP addresses, the time-to-live
-  field, and the router's forwarding decision.
-- *Data Link (L2)*: Ethernet framing, and ARP, which resolves the next-hop MAC.
-- *Physical (L1)*: the transmission of the frame on the copper link between two ports.
+#q[Identify the source and destination MAC addresses. Which OSI layer is
+responsible for handling these?]
 
-The Session (L5) and Presentation (L6) layers do not appear as separate entries.
-Packet Tracer folds their functions into the application logic, which is a fair
-simplification for a stateless HTTP fetch that carries no separate session
-negotiation or data-format translation.
+On the client network segment, the source MAC address is `0060.3E57.B509` (the
+client) and the destination MAC address is `000A.F36D.3101` (Router0, interface
+Gi0/0). MAC addresses are handled at *Layer 2 (Data Link)*. The MAC address pair
+is replaced on each segment; the full change is detailed under Data Flow.
 
-= Source and Destination Addresses
+= Identify the Layers Involved in This Communication
 
-== IP addresses and the layer that handles them
+#q[For each step in the communication, identify the OSI layer involved.]
 
-The source IP is `10.1.1.2` (Tom) and the destination IP is `23.227.38.65` (the
-web server, obtained from the DNS reply). These addresses belong to the
-*Network layer (L3)*. They are set once by the source and are not changed in
-transit: Router0 runs no NAT, so the same pair is present in the IP header when
-the packet leaves Tom and when it reaches the server.
+In summary, DNS resolution
+and the HTTP request and response operate at Layer 7; the TCP handshake and data
+transfer at Layer 4; IP addressing and routing at Layer 3; ARP and Ethernet
+framing at Layer 2; and transmission over the medium at Layer 1.
 
-== MAC addresses and the layer that handles them
+#q[Which layer is responsible for:
+- Establishing the connection between the PC and the server?
+- Translating the domain name into an IP address?
+- Ensuring data is error-free?]
 
-The MAC addresses belong to the *Data Link layer (L2)*. Unlike the IP pair, the
-MAC pair does not survive the journey; it is rewritten on each subnet. On the
-client LAN the frame travels from Tom's card `0060.3E57.B509` to Router0's inward
-interface Gi0/0 `000A.F36D.3101`. On the server subnet it travels from Router0's
-outward interface Gi0/1 `000A.F36D.3102` to the server's card `0060.7044.7973`.
-The full rewrite is shown in the section on data flow at the network layer.
+- *Establishing the connection:* Layer 4 (Transport). TCP establishes the
+  connection through a three-way handshake (SYN, SYN-ACK, ACK) before any data is
+  transferred.
+- *Translating the domain name into an IP address:* Layer 7 (Application),
+  performed by the DNS protocol.
+- *Ensuring data is error-free:* Layer 4 (Transport). TCP uses sequence and
+  acknowledgement numbers together with a checksum to detect loss or corruption
+  and to retransmit missing segments.
 
-= Functions of the Layers in the Request
+= Examine the Data Encapsulation Process
 
-== Establishing the connection
+#q[For each hop, identify the headers and trailers added or removed at each OSI
+layer.]
 
-The *Transport layer (L4)* establishes the connection. Before any HTTP data is
-sent, TCP performs a three-way handshake: Tom sends a SYN, the server answers
-with SYN-ACK, and Tom returns an ACK. Only then does the GET travel.
-
-== Translating the domain name to an IP address
-
-The *Application layer (L7)* performs name resolution. DNS is itself an
-application-layer protocol; it uses UDP at the transport layer for delivery, but
-the query and answer are application data. Server0 receives the query for
-`www.cyber.com` and returns the address record `23.227.38.65`.
-
-== Ensuring data is error-free
-
-Reliability rests mainly with the *Transport layer (L4)*. TCP numbers every
-byte, acknowledges what it receives, and retransmits anything left
-unacknowledged, so lost or reordered segments are detected and repaired. A
-16-bit checksum in the TCP header guards the segment contents, and the Ethernet
-trailer at L2 adds a frame check sequence that catches bit errors on the wire.
-These fields are covered in the section on error detection.
-
-= Data Encapsulation Across the Path
-
-Encapsulation is the wrapping of data in a header, and at L2 a trailer, as it
-passes down the stack, and decapsulation is the reverse on the way up. The table
-lists what each device does to one outbound packet.
+Encapsulation adds a header at each layer, and a trailer at Layer 2, as data
+descends the stack; decapsulation removes them as data ascends the stack. The
+action at each device is shown below.
 
 #figure(
   table(
     columns: (auto, auto, auto),
     align: (left, left, left),
-    [Device], [Layer], [What it does to the packet],
-    [Laptop0 (source)], [L7 to L1], [wraps the HTTP data in a TCP segment (ports,
-      sequence, MSS), then an IP packet (`10.1.1.2` to `23.227.38.65`, TTL), then
-      an Ethernet frame with FCS addressed to the gateway],
-    [Switch0], [L2], [reads the destination MAC and forwards on the matching
-      port; no header is added or removed],
-    [Router0], [L3], [strips the incoming Ethernet header, decrements the IP TTL,
-      looks up the route, and builds a new Ethernet header with new source and
-      destination MACs for the outbound interface],
-    [Switch1], [L2], [forwards on the destination MAC; the frame is unchanged],
-    [Server1 (dest)], [L1 to L7], [strips Ethernet, then IP, then TCP, and hands
-      the HTTP request to the server process],
+    [Device], [Layer], [Action on the packet],
+    [Laptop0 (source)], [7 to 1], [adds the TCP header (ports, sequence numbers),
+      then the IP header (source and destination IP, TTL), then the Ethernet
+      header and trailer (source and destination MAC, FCS)],
+    [Switch0], [2], [forwards using the destination MAC address; no header is added or removed],
+    [Router0], [3], [removes the Ethernet header, decrements the TTL, selects the
+      route, and adds a new Ethernet header with new source and destination MAC addresses],
+    [Switch1], [2], [forwards using the destination MAC address; frame unchanged],
+    [Server1 (destination)], [1 to 7], [removes the Ethernet, IP, and TCP headers
+      in turn and delivers the HTTP request to the web service],
   ),
-  caption: [Encapsulation and decapsulation along the path.],
+  caption: [Headers and trailers added or removed at each hop.],
 )
 
-The layer that changes the packet most is *L2*. The IP header loses only its
-TTL, decremented by one at each router, whereas the Ethernet header is discarded
-and rebuilt in full at every router hop, with both MAC addresses replaced. A
-switch changes nothing above the physical port on which it forwards.
+#q[Which layers modify the packet the most during its journey?]
+
+Layer 2 (Data Link) is modified the most. The IP header changes only in its TTL
+field, which is decremented by one at each router, whereas the Ethernet header and
+trailer are removed and rebuilt at every router hop, with both MAC addresses
+replaced. The switches forward frames without modifying them.
 
 = Protocol Identification
 
+#q[Identify the following: the application layer protocol, the transport layer
+protocol, and the network layer protocol.]
+
 #figure(
   table(
     columns: (auto, auto, auto),
     align: (left, left, left),
-    [Layer], [Protocol], [Evidence in the capture],
-    [Application (L7)], [DNS, then HTTP], [the name lookup, then the GET and 200 OK],
-    [Transport (L4)], [UDP for DNS, TCP for HTTP], [connectionless lookup; a
-      handshake and teardown for the page],
-    [Network (L3)], [IPv4], [32-bit addresses, TTL, and router forwarding],
+    [Layer], [Protocol], [Use in this exchange],
+    [Application (7)], [HTTP (and DNS)], [request the web page; resolve the domain name],
+    [Transport (4)], [TCP (and UDP)], [reliable delivery of the page; UDP for the DNS lookup],
+    [Network (3)], [IPv4], [addressing and routing between the two networks],
   ),
-  caption: [Protocol at each layer of the request.],
+  caption: [Protocols used at each layer.],
 )
 
-DNS resolves the name over UDP, which is connectionless and needs no handshake.
-HTTP then runs over TCP on port 80, which is why the handshake and teardown
-appear for the page but not for the lookup. Both ride on IPv4.
+The application layer protocol is *HTTP* (with *DNS* for name resolution), the
+transport layer protocol is *TCP* (and *UDP* for DNS), and the network layer
+protocol is *IP (IPv4)*.
 
-= IP Addressing
+= Analyze IP Addressing
 
-The source IP `10.1.1.2` and destination IP `23.227.38.65` are added at *L3*,
-when Tom's TCP stack passes the segment down to IP. Because the destination is
-not on Tom's local network, L3 sends the packet to the configured default
-gateway `10.1.1.1` rather than resolving the destination directly.
+#q[Identify the source and destination IP addresses of the packet.]
 
-At the server, L3 compares the packet's destination IP with its own interface
-address `23.227.38.65`. The two match, so the packet is decapsulated and passed
-up the stack instead of being forwarded on. The addresses are not rewritten
-anywhere along the path, because Router0 performs no address translation.
+Source IP: `10.1.1.2` (client). Destination IP: `23.227.38.65` (web server).
+
+#q[At which OSI layer are these addresses added?]
+
+The IP addresses are added at *Layer 3 (Network)*. As the destination is on a
+different network, the packet is sent to the default gateway (`10.1.1.1`) for
+forwarding.
+
+#q[What happens to the IP addresses when the packet reaches the server?]
+
+The server compares the destination IP address with its own interface address
+(`23.227.38.65`). They match, so the packet is accepted and decapsulated rather
+than forwarded. The IP addresses are not changed anywhere along the path, as no
+NAT is configured on the router.
 
 = Port Numbers and Sockets
 
-The destination port is *80*, the well-known port for HTTP, which tells the
-server that the request is for its web service. The source port is an
-*ephemeral port* that Tom's stack allocates for this one connection; Packet
-Tracer assigns `1025`. Ports belong to the *Transport layer (L4)*.
+#q[What are the source and destination port numbers for this website request?]
 
-A socket is the pair of an IP address and a port. Ports matter because the IP
-pair alone identifies only two machines, whereas the port pair lets each machine
-deliver the traffic to the correct process. Port 80 directs the request to the
-web server, and port 1025 is the return address that lets the reply reach the
-process that opened the connection rather than any other on the host. DNS uses
-UDP port `53` on Server0 by the same well-known-port convention.
+The destination port is `80` (HTTP). The source port is `1025`, an ephemeral port
+assigned by the client for this connection.
+
+#q[Which OSI layer uses these port numbers, and why are they important?]
+
+Port numbers are used at *Layer 4 (Transport)*. A port number identifies the
+specific process or service at each host, so a host running several applications
+can deliver each segment to the correct process. Port 80 directs the request to
+the web service, and the ephemeral source port ensures the reply returns to the
+requesting process. The combination of an IP address and a port number is called
+a socket.
 
 = Error Detection
 
-Error detection is applied at more than one layer.
+#q[Find the layer where error detection mechanisms are applied to ensure reliable
+transmission.]
 
-- *Data Link (L2)*: the Ethernet trailer carries a 4-byte Frame Check Sequence,
-  a CRC-32 computed over the frame. The receiver recomputes it and discards the
-  frame if it does not match, which catches bit errors introduced on the
-  physical link.
-- *Network (L3)*: the IPv4 header carries a 16-bit header checksum that protects
-  the header fields.
-- *Transport (L4)*: the TCP header carries a 16-bit checksum over the segment,
-  and TCP's sequence and acknowledgement numbers detect loss, duplication, and
-  reordering, so a missing segment is retransmitted.
+Error checking is present at Layers 2, 3, and 4. Reliable transmission, meaning
+ordered and complete delivery with retransmission of lost data, is provided at
+*Layer 4 (Transport)* by TCP. *Layer 2 (Data Link)* additionally checks each frame
+for corruption on the link.
 
-The layer that guarantees a reliable, ordered byte stream to the application is
-L4. The frame check sequence at L2 is the first line of defence against
-corruption on the wire.
+#q[What specific mechanism or field in the packet is responsible for error
+checking?]
+
+- *Layer 2:* the Frame Check Sequence (FCS), a CRC-32 value in the Ethernet trailer.
+- *Layer 3:* the IPv4 header checksum.
+- *Layer 4:* the TCP checksum, together with sequence and acknowledgement numbers
+  for detecting loss and triggering retransmission.
 
 = Path Analysis
 
-The forwarding path is Laptop0, Switch0, Router0, Switch1, Server1, retraced by
-the reply. Three kinds of device handle the frame differently.
+#q[Trace the path of the packet from the PC to the server and back.]
 
-- *Switches (Switch0 and Switch1, 2960-24TT), L2*: forward on the destination
-  MAC using the MAC address table. They do not inspect the IP header, do not
-  change the TTL, and pass the frame on unchanged.
-- *Router (Router0, 2911), L3*: the only device that reads the IP header. It
-  decrements the TTL, consults its routing table to choose the outbound
-  interface, and rebuilds the L2 header with new source and destination MAC
-  addresses before forwarding.
-- *End hosts (Laptop0 and Server1)*: the only devices that process the frame all
-  the way up to L7.
+The packet travels Laptop0, Switch0, Router0, Switch1, Server1, and the reply
+follows the reverse path.
 
-One behaviour was captured directly. The first ICMP echo of a cold ping from Tom
-to the server was lost while the others succeeded.
+#q[Identify the devices involved at each hop (switches, routers, etc.).]
 
-#figure(
-  ```
-  Laptop0  ->  23.227.38.65
-  Packets: Sent = 4, Received = 3, Lost = 1 (25% loss)
-  ```,
-  caption: [First, cold ping: one echo lost during ARP resolution.],
-)
+Two switches and one router lie between the end hosts: Switch0 on the client side,
+Router0 in the middle, and Switch1 on the server side. The end hosts are Laptop0
+(client) and Server1 (web server).
 
-On first contact the sender has no ARP entry for the next hop, so the first
-packet is dropped while the ARP request and reply complete, then forwarding
-proceeds normally. A repeated ping showed no loss. This is expected on a cold
-path, not a fault.
+#q[How does each device process the packet differently based on its OSI layer?]
+
+- *Switches (Switch0, Switch1) at Layer 2:* forward the frame using the
+  destination MAC address and the MAC address table; they do not examine the IP
+  header or modify the packet.
+- *Router (Router0) at Layer 3:* examines the destination IP address, selects the
+  outgoing interface from its routing table, decrements the TTL, and builds a new
+  Layer 2 frame with updated MAC addresses.
+- *End hosts (Laptop0, Server1) at Layer 7:* originate and process the data
+  through all seven layers.
 
 = DNS Resolution
 
-Before Tom can address the connection, the browser needs an IP for
-`www.cyber.com`. Resolution costs two packets, both inside the client LAN and
-both exchanged with Server0 (`10.1.1.10`): a query carrying the name, and a
-response carrying the address record `23.227.38.65`. The layers involved are L7
-(the query and answer), L4 (UDP, so there is no handshake), L3 (IP, delivered
-within the same subnet, so there is no router hop), and L2 and L1 (Ethernet and
-the physical link, with an ARP lookup for the server's MAC on first contact).
-Resolution completes before the TCP SYN toward the resolved address is built, so
-the name lookup is a prerequisite for the connection, not a parallel step.
+#q[Analyze the process of resolving the domain name to an IP address.]
 
-= Transport Protocol: TCP Versus UDP
+Before the connection is opened, the client sends a DNS query for `www.cyber.com`
+to the DNS server (`10.1.1.10`). The DNS server returns the corresponding IP
+address `23.227.38.65`. This resolution completes before the TCP connection to the
+web server is initiated.
 
-The lab asks for the web request to be moved from TCP to UDP. Packet Tracer's
-Server-PT HTTP service is bound to TCP port 80 in its application model and
-offers no option, in the interface or through the bridge, to rebind it to UDP.
-This restriction is itself the point: HTTP is specified to run over TCP.
+#q[What additional packets are sent, and which OSI layers are involved in this
+resolution?]
 
-Reasoning from the captured exchange, replacing TCP with UDP would remove the
-three-way handshake, the sequence and acknowledgement numbers, and the
-retransmission of lost segments. The single echo lost to ARP on the cold path
-was recovered under TCP because that layer retransmits; under UDP it would
-simply be gone, and the application would have to detect and recover on its own.
-A segment lost in the middle of a multi-segment page would leave a gap that UDP
-has no way to notice, so the page could be truncated silently. Reliability of
-the transfer would move from the transport layer to the application, which is
-why web content uses TCP.
+Two additional packets are sent: one DNS query and one DNS response. The layers
+involved are Layer 7 (the DNS query and response), Layer 4 (UDP), Layer 3 (IP,
+within the same subnet), and Layers 2 and 1 (Ethernet framing and physical
+transmission), with ARP used at Layer 2 to resolve the MAC address on first
+contact.
 
-= Data Flow at the Network Layer
+= Data Flow
 
-Holding the packet at a network-layer decision on Router0 shows the same pattern
-in each direction: the frame arrives with one MAC pair and leaves with a
-different one, while the IP addresses inside stay fixed.
+#q[Examine and explain how the source and destination MAC addresses change as the
+packet passes through different network devices.]
+
+At each router hop the Layer 2 frame is rebuilt, so the source and destination MAC
+addresses are replaced, while the Layer 3 IP addresses remain unchanged.
 
 #figure(
   table(
     columns: (auto, auto, auto, auto),
     align: (left, left, left, left),
-    [Segment], [Source MAC], [Destination MAC], [IP payload (unchanged)],
-    [Tom to Router0 (client LAN)], [`0060.3E57.B509`], [`000A.F36D.3101` (Gi0/0)],
+    [Segment], [Source MAC], [Destination MAC], [IP addresses (unchanged)],
+    [Laptop0 to Router0], [`0060.3E57.B509`], [`000A.F36D.3101`],
       [`10.1.1.2` to `23.227.38.65`],
-    [Router0 to Server1 (server subnet)], [`000A.F36D.3102` (Gi0/1)],
-      [`0060.7044.7973`], [`10.1.1.2` to `23.227.38.65`],
+    [Router0 to Server1], [`000A.F36D.3102`], [`0060.7044.7973`],
+      [`10.1.1.2` to `23.227.38.65`],
   ),
-  caption: [The MAC pair is rewritten at the router; the IP pair is not.],
+  caption: [MAC addresses are rewritten at the router; IP addresses are not.],
 )
 
-The router is the only device that writes a new MAC pair; each switch leaves both
-addresses as it received them. The rule that follows is that MAC addresses are
-link-local, valid for a single hop and rebuilt by every router, whereas IP
-addresses are end-to-end, set once by the source and read unchanged by the
-destination.
+The switches do not change the MAC addresses; only the router rewrites them. MAC
+addresses are therefore local to a single link, whereas IP addresses remain
+constant from source to destination.
 
-= Simulating a Link Failure
+= Simulate Network Issues
 
-To observe a fault, the cable on Router0 `GigabitEthernet0/1`, the only path
-from the client LAN to the server subnet, was removed, and a ping was issued
-from Tom to `23.227.38.65`.
+#q[Disconnect a device (e.g., a router or switch) and observe how the
+communication fails. Identify which OSI layers are affected and how the failure
+manifests in the packet analysis.]
+
+The link between Router0 (interface Gi0/1) and Switch1 was disconnected, removing
+the only path to the server network. A ping from the client to `23.227.38.65` then
+failed completely.
 
 #figure(
   image("assets/02-link-down.png", width: 100%),
-  caption: [With the Router0 to Switch1 cable removed, the server subnet on the
-  right is isolated from the rest of the topology.],
+  caption: [With the Router0 to Switch1 link removed, the server network is
+  isolated from the rest of the topology.],
 )
-
-The result was total loss.
 
 #figure(
   ```
   Laptop0  ->  23.227.38.65
   Packets: Sent = 4, Received = 0, Lost = 4 (100% loss)
   ```,
-  caption: [The ping with the link removed.],
+  caption: [Ping result with the link removed.],
 )
 
-With the cable gone, the directly connected route to `23.227.38.0` disappears
-from Router0's table, so every layer above the physical fault fails at once for
-that destination: there is no next hop to ARP for, no route to select, no
-handshake to begin, and no page to fetch. A single L1 failure removes L2 through
-L7 for any traffic that depended on the link, which shows that the layers form a
-dependency chain rather than a set of independent checks.
+The failure originates at *Layer 1 (Physical)*, the disconnected link. Because
+each layer depends on the layer below it, Layers 2 to 7 also fail for this
+destination: the next-hop MAC address cannot be resolved (Layer 2), no route to
+the network is available (Layer 3), the TCP connection cannot be established
+(Layer 4), and the web page cannot be requested (Layer 7). In the packet analysis
+this appears as 100% packet loss, with no reply returned. After the link was
+reconnected, a further ping reported 0% loss, confirming that connectivity was
+restored.
 
-The cable was then reconnected on the same interfaces, Router0 Gi0/1 to Switch1
-Gi0/1. After the switch port finished its spanning-tree transition, a repeated
-ping returned zero loss, which confirmed that the topology was restored.
+#heading(level: 1, numbering: none)[Conclusion]
 
-= Conclusion
-
-One web request exercises the whole stack: DNS and HTTP at L7, UDP and TCP at
-L4, IPv4 at L3, Ethernet and ARP at L2, and the copper link at L1. The IP pair
-is end-to-end and the MAC pair is per-hop. The router is the only device that
-reads L3 and rewrites L2, while the switches act only at L2. Error detection is
-layered, with the TCP checksum and sequence numbers above the IP and Ethernet
-checks. Removing one cable showed that each layer depends on the ones beneath it.
+A single web request uses the full OSI stack: DNS and HTTP at Layer 7, TCP and
+UDP at Layer 4, IP at Layer 3, Ethernet and ARP at Layer 2, and the physical link
+at Layer 1. The IP addresses remain constant from source to destination, while the
+MAC addresses are rewritten at each router hop. Switches operate only at Layer 2,
+and the router is the only device that operates at Layer 3. Error detection is
+applied at Layers 2, 3, and 4. Disconnecting a single link caused the request to
+fail completely, demonstrating that each layer depends on the layers below it.
