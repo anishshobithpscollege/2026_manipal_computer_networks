@@ -9,13 +9,19 @@ Every push to `main` compiles each assignment to a PDF and attaches it to the [l
 ### Theory
 
 <!-- THEORY:START -->
+
 _None yet. Add one under `assignments/theory/`._
+
 <!-- THEORY:END -->
 
 ### Lab
 
 <!-- LAB:START -->
-_None yet. Add one under `assignments/lab/`._
+
+| # | Assignment | Download |
+| :-- | :-- | :-- |
+| 02 | Understanding the OSI Model | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_02.pdf) |
+
 <!-- LAB:END -->
 
 ## Set your identity
