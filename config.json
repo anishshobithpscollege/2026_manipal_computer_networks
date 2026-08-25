@@ -1,10 +1,10 @@
 {
-  "author": "Student Name",
-  "reg_no": "241234567",
+  "author": "Anish Shobith P S",
+  "reg_no": "261100690032",
   "institution": "Manipal School of Information Sciences",
   "kinds": {
-    "Theory": { "course": "Subject Name", "course_code": "SUB 1001" },
-    "Lab": { "course": "Subject Name Lab", "course_code": "SUB 1002" }
+    "Theory": { "course": "Computer Networks and Security", "course_code": "CYE 5104" },
+    "Lab": { "course": "Computer Networks and Security Lab", "course_code": "CYE 5154" }
   },
   "logo": "/template/assets/logo.png",
   "logo_width_cm": 2.8
