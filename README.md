@@ -21,6 +21,10 @@ _None yet. Add one under `assignments/theory/`._
 | # | Assignment | Download |
 | :-- | :-- | :-- |
 | 02 | Understanding the OSI Model | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_02.pdf) |
+| 03 | ARP and Switch Learning within a Network | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_03.pdf) |
+| 04 | Basic Dual-Router Configuration & Static Routing | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_04.pdf) |
+| 3 | Examining the ARP Table | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_3.pdf) |
+| 4 | VLSM Subnetting & Dual-Router Static Routing | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_4.pdf) |
 
 <!-- LAB:END -->
 
