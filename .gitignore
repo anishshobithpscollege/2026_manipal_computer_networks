@@ -2,3 +2,4 @@ dist/
 *.pdf
 venv/
 __pycache__/
+classwork/
