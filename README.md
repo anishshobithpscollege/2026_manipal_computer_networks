@@ -24,8 +24,12 @@ _None yet. Add one under `assignments/theory/`._
 | 03 | ARP and Switch Learning within a Network | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_03.pdf) |
 | 04 | Basic Dual-Router Configuration & Static Routing | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_04.pdf) |
 | 05 | Dual-Router VLSM Network with a Wireless LAN | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_05.pdf) |
+| 06 | MSIS Campus Network: Subnetting, Routing, DHCP and DNS | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_06.pdf) |
+| 07 | Digital Certificate Chain Practice Lab | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_07.pdf) |
+| 08 | TLS 1.2 RSA Handshake: Capture, Inspection and Decryption | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_08.pdf) |
 | 3 | Examining the ARP Table | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_3.pdf) |
 | 4 | VLSM Subnetting & Dual-Router Static Routing | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_4.pdf) |
+| 5 | Multi-Department Network and DHCP Relay Design | [PDF](../../releases/download/latest/261100690032_Anish_Shobith_P_S_Computer_Networks_and_Security_Lab_CYE_5154_5.pdf) |
 
 <!-- LAB:END -->
 
